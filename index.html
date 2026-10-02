@@ -274,19 +274,141 @@ body.panel-collapsed .sheet{transform:translateY(calc(100% + 40px));opacity:0;po
 
 .tool-points-row{margin-top:8px}
 #toolPointsBtn.points-hidden{background:#3b2f22;color:#ffd9a0}
+
+/* V13 — mobilā velkamā vadības atvilkne */
+body.panel-collapsed .sheet{transform:none!important;opacity:1!important;pointer-events:auto!important}
+
+.sheet{
+  --drawer-y:0px;
+  transform:translate3d(0,var(--drawer-y),0);
+  transition:transform .24s cubic-bezier(.22,.8,.25,1);
+  will-change:transform;
+}
+.sheet.dragging{transition:none}
+
+.sheet-grab{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  min-height:52px;
+  margin:-12px -12px 8px;
+  padding:8px 12px 7px;
+  border-radius:16px 16px 0 0;
+  background:rgba(18,25,20,.98);
+  border-bottom:1px solid rgba(255,255,255,.08);
+  cursor:grab;
+  touch-action:none;
+  user-select:none;
+  -webkit-user-select:none;
+}
+.sheet-grab:active{cursor:grabbing}
+.sheet-grab-bar{
+  width:52px;
+  height:5px;
+  border-radius:99px;
+  background:#6b786e;
+  margin-bottom:6px;
+}
+.sheet-grab-copy{
+  width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  color:#fff;
+  font-size:13px;
+  font-weight:850;
+}
+.sheet-grab-copy small{
+  color:var(--muted);
+  font-size:10px;
+  font-weight:650;
+  text-align:right;
+}
+.sheet-content{min-width:0}
+
+/* KP informācijas logs arī ir velkams uz leju */
+.control-info-card{
+  --info-y:0px;
+  transform:translate3d(0,var(--info-y),0);
+  transition:transform .22s cubic-bezier(.22,.8,.25,1);
+  will-change:transform;
+}
+.control-info-card.dragging{transition:none}
+.control-info-drag{
+  height:28px;
+  width:100%;
+  margin:0 0 2px;
+  background:transparent;
+  position:relative;
+  touch-action:none;
+  cursor:grab;
+}
+.control-info-drag:before{
+  content:"";
+  position:absolute;
+  left:50%;
+  top:7px;
+  transform:translateX(-50%);
+  width:52px;
+  height:5px;
+  border-radius:99px;
+  background:#6b786e;
+}
+.control-info-drag:active{cursor:grabbing}
+
+@media(max-width:700px){
+  .sheet{
+    position:fixed;
+    left:8px;
+    right:8px;
+    bottom:calc(8px + env(safe-area-inset-bottom));
+    max-width:none;
+    max-height:min(74vh,680px);
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch;
+    padding:12px;
+  }
+  .sheet-grab{
+    position:sticky;
+    top:-12px;
+    z-index:5;
+  }
+  .sheet-content{padding-bottom:1px}
+  .control-info-card{
+    max-height:88vh;
+    overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch;
+  }
+}
+
+@media(min-width:701px){
+  .sheet-grab-copy small{display:none}
+}
+
 </style>
 </head>
 <body>
 <div id="map"></div>
 
 <div class="topbar">
-  <div class="card title"><b>Vējiņu kauss 2026</b><span>🔒 Instruktoru režīms · v12</span></div>
+  <div class="card title"><b>Vējiņu kauss 2026</b><span>🔒 Instruktoru režīms · v13</span></div>
   <div class="spacer"></div>
   <button id="syncBtn" class="iconbtn syncbtn" title="Tiešsaistes KP statuss">DB —</button>
-  <button id="panelToggleBtn" class="iconbtn" title="Paslēpt/rādīt paneli">▾</button>
 </div>
 
-<div class="card sheet">
+<div id="controlDrawer" class="card sheet">
+  <div id="mainDrawerHandle" class="sheet-grab" aria-label="Velc vadības paneli uz augšu vai leju">
+    <div class="sheet-grab-bar"></div>
+    <div class="sheet-grab-copy">
+      <span>Vadība · KP <b id="drawerKp">21</b></span>
+      <small id="drawerHint">Velc uz leju, lai atbrīvotu karti</small>
+    </div>
+  </div>
+
+  <div class="sheet-content">
   <div class="row">
     <select id="kpSelect" class="grow"></select>
     <button id="nearestBtn" class="btn secondary">Tuvākais</button>
@@ -319,6 +441,7 @@ body.panel-collapsed .sheet{transform:translateY(calc(100% + 40px));opacity:0;po
   <div id="cropBox" class="cropbox">
     <canvas id="lofCrop" width="900" height="360"></canvas>
     <div class="legend">LOF fragments pēdējiem metriem. GPS precizitāte mežā var būt sliktāka par kartes precizitāti.</div>
+  </div>
   </div>
 </div>
 
@@ -533,6 +656,7 @@ let placedMeta={};
 let db=null,dbChannel=null,dbReady=false,realtimeReady=false,dbLastError='',dbPollTimer=null;
 let deviceHeading=null,currentTargetBearing=null,compassListening=false;
 let toolPointsVisible=localStorage.getItem('vk2026_tool_points')!=='0';
+let mainDrawerState=localStorage.getItem('vk2026_drawer_state')||'open';
 
 function merc(ll){
   let lat=Math.max(-85.05112878,Math.min(85.05112878,ll.lat))*Math.PI/180;
@@ -693,6 +817,7 @@ function openControlInfo(id){
   const info=CONTROL_INFO[String(id)];
   if(!info)return;
 
+  resetInfoDrawer();
   selectTarget(String(id),false);
 
   $('controlInfoTitle').textContent='KP '+id;
@@ -710,10 +835,12 @@ function closeControlInfo(){
   const overlay=$('controlInfoOverlay');
   overlay.classList.remove('open');
   overlay.setAttribute('aria-hidden','true');
+  resetInfoDrawer();
 }
 
 function selectTarget(id,pan=false){
   targetId=id;$('kpSelect').value=id;
+  if($('drawerKp'))$('drawerKp').textContent=id;
   Object.entries(markers).forEach(([k,m])=>m.setIcon(makeIcon(k,k===id)));
   const c=CONTROLS.find(x=>x.id===id); if(model&&c){targetLatLng=imgToLatLng(c.px,c.py);if(pan)map.setView(targetLatLng,Math.max(map.getZoom(),16));}
   updateNav(); drawCrop(); updatePlacedBtn();
@@ -1452,6 +1579,184 @@ function addWms(){
   layerControl.addOverlay(lvmLayer,'LVM GEO');$('wmsStatus').textContent='LVM slānis pievienots.';
 }
 
+
+function clamp(v,min,max){return Math.max(min,Math.min(max,v))}
+
+/* ---------- Galvenā apakšējā atvilkne ---------- */
+const mainDrawer=$('controlDrawer');
+const mainDrawerHandle=$('mainDrawerHandle');
+let drawerDrag=null;
+
+function mainDrawerMaxY(){
+  if(!mainDrawer)return 0;
+  const peek=56;
+  return Math.max(0,mainDrawer.offsetHeight-peek);
+}
+function setMainDrawerY(y,animate=true){
+  if(!mainDrawer)return;
+  const max=mainDrawerMaxY();
+  y=clamp(y,0,max);
+  mainDrawer.classList.toggle('dragging',!animate);
+  mainDrawer.style.setProperty('--drawer-y',y+'px');
+  mainDrawer.dataset.y=String(y);
+}
+function snapMainDrawer(state,animate=true){
+  mainDrawerState=state==='closed'?'closed':'open';
+  const y=mainDrawerState==='closed'?mainDrawerMaxY():0;
+  setMainDrawerY(y,animate);
+  localStorage.setItem('vk2026_drawer_state',mainDrawerState);
+
+  if($('drawerHint')){
+    $('drawerHint').textContent=mainDrawerState==='closed'
+      ?'Velc uz augšu, lai atvērtu'
+      :'Velc uz leju, lai atbrīvotu karti';
+  }
+}
+function drawerPointerDown(e){
+  if(!mainDrawer || !mainDrawerHandle)return;
+  const startY=e.clientY;
+  const current=Number(mainDrawer.dataset.y||0);
+  drawerDrag={
+    id:e.pointerId,
+    startY,
+    startOffset:current,
+    lastY:startY,
+    lastT:performance.now(),
+    velocity:0,
+    moved:false
+  };
+  mainDrawerHandle.setPointerCapture?.(e.pointerId);
+  mainDrawer.classList.add('dragging');
+}
+function drawerPointerMove(e){
+  if(!drawerDrag || e.pointerId!==drawerDrag.id)return;
+  const now=performance.now();
+  const dy=e.clientY-drawerDrag.startY;
+  if(Math.abs(dy)>4)drawerDrag.moved=true;
+
+  const dt=Math.max(1,now-drawerDrag.lastT);
+  drawerDrag.velocity=(e.clientY-drawerDrag.lastY)/dt;
+  drawerDrag.lastY=e.clientY;
+  drawerDrag.lastT=now;
+
+  setMainDrawerY(drawerDrag.startOffset+dy,false);
+}
+function drawerPointerUp(e){
+  if(!drawerDrag || e.pointerId!==drawerDrag.id)return;
+  const d=drawerDrag;
+  drawerDrag=null;
+  mainDrawer.classList.remove('dragging');
+
+  const current=Number(mainDrawer.dataset.y||0);
+  const max=mainDrawerMaxY();
+
+  if(!d.moved){
+    snapMainDrawer(mainDrawerState==='closed'?'open':'closed',true);
+    return;
+  }
+
+  if(d.velocity>0.35){
+    snapMainDrawer('closed',true);
+  }else if(d.velocity<-0.35){
+    snapMainDrawer('open',true);
+  }else{
+    snapMainDrawer(current>max*0.45?'closed':'open',true);
+  }
+}
+
+mainDrawerHandle?.addEventListener('pointerdown',drawerPointerDown);
+mainDrawerHandle?.addEventListener('pointermove',drawerPointerMove);
+mainDrawerHandle?.addEventListener('pointerup',drawerPointerUp);
+mainDrawerHandle?.addEventListener('pointercancel',drawerPointerUp);
+
+if(window.ResizeObserver && mainDrawer){
+  new ResizeObserver(()=>{
+    if(!drawerDrag)snapMainDrawer(mainDrawerState,false);
+  }).observe(mainDrawer);
+}
+window.addEventListener('resize',()=>{
+  if(!drawerDrag)snapMainDrawer(mainDrawerState,false);
+});
+
+/* ---------- KP info loga vilkšana uz leju ---------- */
+const infoOverlay=$('controlInfoOverlay');
+const infoCard=infoOverlay?.querySelector('.control-info-card');
+const infoHandle=infoOverlay?.querySelector('.control-info-drag');
+let infoDrag=null;
+
+function setInfoDrawerY(y,animate=true){
+  if(!infoCard)return;
+  y=Math.max(0,y);
+  infoCard.classList.toggle('dragging',!animate);
+  infoCard.style.setProperty('--info-y',y+'px');
+  infoCard.dataset.y=String(y);
+
+  if(infoOverlay){
+    const h=Math.max(1,infoCard.offsetHeight);
+    const ratio=clamp(y/h,0,1);
+    infoOverlay.style.background=`rgba(5,8,6,${0.64*(1-ratio*0.75)})`;
+  }
+}
+function resetInfoDrawer(){
+  if(!infoCard)return;
+  infoCard.classList.remove('dragging');
+  infoCard.style.setProperty('--info-y','0px');
+  infoCard.dataset.y='0';
+  if(infoOverlay)infoOverlay.style.background='rgba(5,8,6,.64)';
+}
+function infoPointerDown(e){
+  if(!infoCard || !infoHandle)return;
+  infoDrag={
+    id:e.pointerId,
+    startY:e.clientY,
+    startOffset:Number(infoCard.dataset.y||0),
+    lastY:e.clientY,
+    lastT:performance.now(),
+    velocity:0,
+    moved:false
+  };
+  infoHandle.setPointerCapture?.(e.pointerId);
+  infoCard.classList.add('dragging');
+}
+function infoPointerMove(e){
+  if(!infoDrag || e.pointerId!==infoDrag.id)return;
+  const now=performance.now();
+  const dy=e.clientY-infoDrag.startY;
+  if(Math.abs(dy)>4)infoDrag.moved=true;
+
+  const dt=Math.max(1,now-infoDrag.lastT);
+  infoDrag.velocity=(e.clientY-infoDrag.lastY)/dt;
+  infoDrag.lastY=e.clientY;
+  infoDrag.lastT=now;
+
+  setInfoDrawerY(infoDrag.startOffset+dy,false);
+}
+function infoPointerUp(e){
+  if(!infoDrag || e.pointerId!==infoDrag.id)return;
+  const d=infoDrag;
+  infoDrag=null;
+  infoCard.classList.remove('dragging');
+
+  const y=Number(infoCard.dataset.y||0);
+  const closeAt=Math.min(180,infoCard.offsetHeight*0.28);
+
+  if(d.velocity>0.38 || y>closeAt){
+    setInfoDrawerY(infoCard.offsetHeight+40,true);
+    setTimeout(()=>{
+      closeControlInfo();
+      resetInfoDrawer();
+    },190);
+  }else{
+    setInfoDrawerY(0,true);
+  }
+}
+
+infoHandle?.addEventListener('pointerdown',infoPointerDown);
+infoHandle?.addEventListener('pointermove',infoPointerMove);
+infoHandle?.addEventListener('pointerup',infoPointerUp);
+infoHandle?.addEventListener('pointercancel',infoPointerUp);
+
+
 $('kpSelect').addEventListener('change',e=>selectTarget(e.target.value,true));
 $('nearestBtn').onclick=nearest;$('gpsBtn').onclick=startGps;$('centerBtn').onclick=()=>targetLatLng&&map.setView(targetLatLng,18);
 $('cropBtn').onclick=()=>{$('cropBox').classList.toggle('open');drawCrop()};$('placedBtn').onclick=togglePlaced;
@@ -1495,13 +1800,6 @@ $('identityInput').addEventListener('keydown',e=>{
 $('identitySave').onclick=saveIdentityFromModal;
 $('identityCancel').onclick=()=>closeIdentityOverlay(null);
 
-$('panelToggleBtn').onclick=()=>{
-  document.body.classList.toggle('panel-collapsed');
-  const hidden=document.body.classList.contains('panel-collapsed');
-  $('panelToggleBtn').textContent=hidden?'▴':'▾';
-  $('panelToggleBtn').title=hidden?'Rādīt paneli':'Paslēpt paneli';
-  localStorage.setItem('vk2026_panel_collapsed',hidden?'1':'0');
-};
 $('syncBtn').onclick=async()=>{$('statusOverlay').classList.add('open');renderStatusList();await loadDbStatus(false);renderStatusList()};
 $('closeStatusOverlay').onclick=()=>$('statusOverlay').classList.remove('open');
 $('directionMetric').onclick=openCompass;
@@ -1529,10 +1827,8 @@ if(Number.isFinite(savedInstructorOpacity) && savedInstructorOpacity>=0 && saved
 $('opacityValue').textContent=Math.round(lofOpacity*100)+'%';
 applyToolPointsVisibility();
 
-if(localStorage.getItem('vk2026_panel_collapsed')==='1'){
-  document.body.classList.add('panel-collapsed');
-  $('panelToggleBtn').textContent='▴';
-}
+requestAnimationFrame(()=>snapMainDrawer(mainDrawerState,false));
+
 try{
   if(location.hash.startsWith('#cfg=')){let o=decodeCfg(location.hash.slice(5));pairs=o.pairs||[];if(o.wms?.url)$('wmsUrl').value=o.wms.url;renderPairs();}
   else{pairs=JSON.parse(localStorage.getItem('vk2026_pairs')||'[]');renderPairs();}
