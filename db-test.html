@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="lv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VK2 Supabase diagnostika</title>
+<style>
+body{font-family:system-ui,Arial,sans-serif;background:#0d120e;color:#fff;margin:0;padding:20px}
+.wrap{max-width:780px;margin:auto}
+.card{background:#151d17;border:1px solid #344137;border-radius:16px;padding:16px;margin:12px 0}
+.ok{color:#8ee7a0}.bad{color:#ff9292}.warn{color:#ffd17c}
+button{padding:12px 16px;border:0;border-radius:12px;font-weight:800}
+pre{white-space:pre-wrap;word-break:break-word;background:#090d0a;padding:12px;border-radius:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>VK2 Supabase diagnostika</h1>
+<p>Šī lapa neko nemaina datubāzē. Tā pārbauda SDK, konfigurāciju, SELECT un Realtime savienojumu.</p>
+<button id="run">Palaist pārbaudi</button>
+<div id="out"></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script>
+const out=document.getElementById('out');
+const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+function card(title,cls,text){
+  out.insertAdjacentHTML('beforeend',`<div class="card"><h3>${esc(title)}</h3><div class="${cls}">${esc(text)}</div></div>`);
+}
+async function run(){
+  out.innerHTML='';
+  card('1. Supabase SDK',window.supabase?.createClient?'ok':'bad',
+       window.supabase?.createClient?'Ielādēts':'NAV ielādēts');
+  const cfg=window.VK_SUPABASE||{};
+  card('2. Konfigurācija',(cfg.url&&cfg.publishableKey)?'ok':'bad',
+       `URL: ${cfg.url||'NAV'}\nKey: ${cfg.publishableKey?cfg.publishableKey.slice(0,18)+'…':'NAV'}\nEvent: ${cfg.eventId||'NAV'}`);
+  if(!window.supabase?.createClient||!cfg.url||!cfg.publishableKey)return;
+
+  const sb=window.supabase.createClient(cfg.url,cfg.publishableKey,{
+    auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}
+  });
+
+  try{
+    const {data,error,status,statusText}=await sb.from('control_status')
+      .select('event_id,control_id,is_placed,placed_by,updated_at')
+      .eq('event_id',cfg.eventId||'vejinu-kauss-2026');
+    if(error)throw error;
+    card('3. Datubāzes SELECT','ok',`Darbojas. Atrastas rindas: ${(data||[]).length}. HTTP ${status||''} ${statusText||''}`);
+    out.insertAdjacentHTML('beforeend',`<div class="card"><h3>SELECT dati</h3><pre>${esc(JSON.stringify(data,null,2))}</pre></div>`);
+  }catch(e){
+    card('3. Datubāzes SELECT','bad',e?.message||String(e));
+  }
+
+  card('4. Realtime','warn','Gaida savienojuma statusu…');
+  const rtCards=out.querySelectorAll('.card');
+  const rtCard=rtCards[rtCards.length-1];
+  const channel=sb.channel('vk-diagnostic-'+Date.now())
+    .on('postgres_changes',{
+      event:'*',schema:'public',table:'control_status',
+      filter:`event_id=eq.${cfg.eventId||'vejinu-kauss-2026'}`
+    },()=>{})
+    .subscribe(status=>{
+      const el=rtCard.querySelector('div');
+      el.className=(status==='SUBSCRIBED')?'ok':((status==='CHANNEL_ERROR'||status==='TIMED_OUT')?'bad':'warn');
+      el.textContent='Statuss: '+status;
+    });
+  setTimeout(()=>{
+    try{sb.removeChannel(channel)}catch(_){}
+  },15000);
+}
+document.getElementById('run').onclick=run;
+run();
+</script>
+</body>
+</html>
