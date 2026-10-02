@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="lv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111711">
+<title>Vējiņu kauss 2026 — KP izvietošana</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{--bg:#0e130f;--panel:#172019;--panel2:#202b22;--text:#f4f6f4;--muted:#a9b6aa;--accent:#b99b65;--good:#65c878;--warn:#f0b85a;--bad:#ef6c68;--line:#39463b}
+*{box-sizing:border-box}
+html,body,#map{height:100%;margin:0}
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
+#map{position:absolute;inset:0;z-index:1}
+.topbar{position:absolute;z-index:1000;top:calc(10px + env(safe-area-inset-top));left:10px;right:10px;display:flex;gap:8px;align-items:center;pointer-events:none}
+.card{background:rgba(14,19,15,.92);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.12);box-shadow:0 8px 30px rgba(0,0,0,.32);border-radius:16px}
+.title{padding:10px 13px;pointer-events:auto;min-width:0}
+.title b{display:block;font-size:15px;white-space:nowrap}.title span{font-size:11px;color:var(--muted)}
+.spacer{flex:1}
+.iconbtn,.btn,select,input{font:inherit}
+.iconbtn{pointer-events:auto;border:1px solid rgba(255,255,255,.12);background:rgba(14,19,15,.92);color:#fff;border-radius:14px;padding:11px 13px;font-weight:700}
+.sheet{position:absolute;z-index:1000;left:10px;right:10px;bottom:calc(10px + env(safe-area-inset-bottom));padding:12px;max-width:650px;margin:auto}
+.row{display:flex;gap:8px;align-items:center}.grow{flex:1}.stack{display:grid;gap:8px}
+select,input{width:100%;background:#0f1511;color:#fff;border:1px solid var(--line);border-radius:12px;padding:11px 12px}
+.btn{border:0;border-radius:12px;padding:11px 13px;font-weight:800;background:var(--accent);color:#17130c}
+.btn.secondary{background:#29362c;color:#fff}.btn.good{background:var(--good);color:#07120a}.btn.bad{background:#612f30;color:#fff}.btn:disabled{opacity:.45}
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:9px}
+.metric{background:#101612;border:1px solid #2d3a30;border-radius:12px;padding:8px;text-align:center}
+.metric small{display:block;color:var(--muted);font-size:10px}.metric strong{font-size:18px}
+.status{margin-top:8px;padding:9px 11px;border-radius:11px;background:#252e27;font-weight:750;font-size:13px}
+.status.good{background:#16351e;color:#bff6ca}.status.warn{background:#3d3219;color:#ffe0a0}.status.bad{background:#412324;color:#ffc0bd}
+.panel{position:absolute;z-index:1200;top:0;right:0;height:100%;width:min(430px,100%);background:#101611;border-left:1px solid #304033;padding:18px 16px calc(20px + env(safe-area-inset-bottom));overflow:auto;transform:translateX(102%);transition:.2s ease}
+.panel.open{transform:none}
+.panel h2{margin:5px 0 4px}.panel h3{margin:20px 0 8px}.hint{color:var(--muted);font-size:13px;line-height:1.45}
+.pair{padding:9px;border:1px solid var(--line);border-radius:10px;margin:6px 0;font-size:12px}
+.cal-overlay{display:none;position:absolute;z-index:2000;inset:0;background:#0c100d}
+.cal-overlay.open{display:flex;flex-direction:column}
+.cal-head{padding:10px;display:flex;gap:8px;align-items:center;background:#151c17}
+.cal-wrap{flex:1;overflow:auto;position:relative;background:#222;overscroll-behavior:contain}
+.cal-wrap img{display:block;width:100%;height:auto;max-width:none;min-width:0;cursor:crosshair;user-select:none;-webkit-user-drag:none}
+.cal-tools{margin-left:auto;display:flex;gap:6px;align-items:center}
+.cal-tools .iconbtn{padding:8px 11px;min-width:42px}
+.zoom-label{min-width:58px;text-align:center;font-weight:800;font-size:12px;color:#fff}
+.cross{position:absolute;width:24px;height:24px;border:2px solid red;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none}
+.cross:after,.cross:before{content:"";position:absolute;background:red}.cross:after{width:32px;height:2px;left:-6px;top:9px}.cross:before{height:32px;width:2px;left:9px;top:-6px}
+.legend{font-size:11px;color:var(--muted)}
+.leaflet-control-layers{font-size:12px}
+.kp-marker{width:34px;height:34px;border-radius:50%;border:3px solid #d73ad2;background:rgba(255,255,255,.68);display:flex;align-items:center;justify-content:center;font:bold 11px system-ui;color:#5a0057;box-shadow:0 1px 8px #0005}
+.kp-marker.sel{background:#fff200;border-color:#000;color:#000;transform:scale(1.15)}
+.user-dot{width:20px;height:20px;border-radius:50%;background:#1976ff;border:3px solid white;box-shadow:0 0 0 8px rgba(25,118,255,.18)}
+#map.calibrating,
+#map.calibrating .leaflet-container,
+#map.calibrating .leaflet-pane,
+#map.calibrating .leaflet-interactive,
+#map.calibrating .leaflet-grab,
+#map.calibrating .leaflet-dragging,
+#map.calibrating *{cursor:crosshair!important}
+.map-cal-cross{position:relative;width:30px;height:30px;pointer-events:none}
+.map-cal-cross:before,.map-cal-cross:after{content:"";position:absolute;background:#ff2b2b;box-shadow:0 0 3px #fff}
+.map-cal-cross:before{width:30px;height:2px;left:0;top:14px}
+.map-cal-cross:after{width:2px;height:30px;left:14px;top:0}
+.map-cal-cross-ring{position:absolute;left:8px;top:8px;width:14px;height:14px;border:2px solid #ff2b2b;border-radius:50%;box-shadow:0 0 3px #fff}
+.cropbox{margin-top:8px;display:none}.cropbox.open{display:block}
+#lofCrop{width:100%;height:180px;border-radius:12px;background:#ddd;border:1px solid #4a574d}
+.small{font-size:12px}.sep{height:1px;background:#2a352c;margin:15px 0}
+.checkbox-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
+@media(max-width:520px){.metrics strong{font-size:16px}.title span{display:none}.sheet{padding:10px}.btn{padding:10px}.iconbtn{padding:10px}.checkbox-grid{grid-template-columns:repeat(4,1fr)}}
+
+.leaflet-top.leaflet-right{top:58px}
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<div class="topbar">
+  <div class="card title"><b>Vējiņu kauss 2026</b><span>Administratora režīms · v8</span></div>
+  <div class="spacer"></div>
+  <button id="adminBtn" class="iconbtn" title="Iestatījumi">⚙️</button>
+</div>
+
+<div class="card sheet">
+  <div class="row">
+    <select id="kpSelect" class="grow"></select>
+    <button id="nearestBtn" class="btn secondary">Tuvākais</button>
+  </div>
+  <div class="metrics">
+    <div class="metric"><small>ATTĀLUMS</small><strong id="dist">—</strong></div>
+    <div class="metric"><small>VIRZIENS</small><strong id="bearing">—</strong></div>
+    <div class="metric"><small>GPS PREC.</small><strong id="acc">—</strong></div>
+  </div>
+  <div id="status" class="status warn">Vispirms nepieciešama kartes piesaiste koordinātēm.</div>
+  <div class="row" style="margin-top:8px">
+    <button id="gpsBtn" class="btn secondary grow">📍 Pieprasīt GPS</button>
+    <button id="centerBtn" class="btn secondary">🎯 KP</button>
+    <button id="cropBtn" class="btn secondary">LOF</button>
+    <button id="placedBtn" class="btn good">✓ Izvietots</button>
+  </div>
+  <div id="cropBox" class="cropbox">
+    <canvas id="lofCrop" width="900" height="360"></canvas>
+    <div class="legend">LOF fragments pēdējiem metriem. GPS precizitāte mežā var būt sliktāka par kartes precizitāti.</div>
+  </div>
+</div>
+
+<aside id="adminPanel" class="panel">
+  <div class="row"><h2 class="grow">Iestatīšana</h2><button id="closeAdmin" class="iconbtn">✕</button></div>
+  <p class="hint">Šo sadaļu vajag tikai vienreiz. Piesaisti LOF karti reālajai kartei ar vismaz 3, vēlams 4–6 labi atpazīstamiem punktiem, kas atrodas tālu cits no cita.</p>
+
+  <h3>1. Ģeoreferencēšana</h3>
+  <button id="addPairBtn" class="btn">+ Pievienot piesaistes punktu</button>
+  <button id="resetPairsBtn" class="btn bad" style="margin-left:5px">Notīrīt</button>
+  <div id="pairs"></div>
+  <div id="calStats" class="status warn">Nav pietiekami daudz punktu.</div>
+
+  <h3>2. LOF slānis</h3>
+  <label class="small">Caurspīdīgums</label>
+  <input id="opacity" type="range" min="0" max="100" value="55">
+  <label class="small"><input id="overlayToggle" type="checkbox" checked style="width:auto"> Rādīt LOF karti virs pamatkartes</label>
+
+  <h3>3. LVM GEO WMS (papildu)</h3>
+  <p class="hint">OSM un satelītkarte darbojas uzreiz. Ja vajag LVM slāni, rīks var mēģināt nolasīt LVM publiskā WMS pieejamos slāņus.</p>
+  <input id="wmsUrl" value="https://geoserver.lvmgeo.lv/wms62531a9bfcfa4015856924e94076a178">
+  <div class="row" style="margin-top:6px">
+    <button id="loadWmsBtn" class="btn secondary">Ielādēt slāņus</button>
+    <select id="wmsLayer" class="grow"><option value="">— izvēlies slāni —</option></select>
+  </div>
+  <button id="addWmsBtn" class="btn secondary" style="margin-top:6px">Pievienot LVM kartei</button>
+  <div id="wmsStatus" class="hint"></div>
+
+  <h3>4. Instruktoru saite</h3>
+  <p class="hint">Kad piesaiste gatava, nokopē šo saiti un nosūti instruktoriem vai izveido no tās QR kodu. Piesaistes dati ir pašā saitē — serveris nav vajadzīgs.</p>
+  <button id="copyLinkBtn" class="btn" disabled>🔗 Kopēt instruktora saiti</button>
+  <button id="exportBtn" class="btn secondary">Saglabāt konfigurāciju</button>
+  <label class="btn secondary" style="display:inline-block;cursor:pointer;margin-top:7px">Ielādēt konfigurāciju<input id="importFile" type="file" accept=".json" hidden></label>
+
+  <div class="sep"></div>
+  <p class="hint"><b>Vairāki instruktori:</b> visi var izmantot šo pašu saiti vienlaikus. “Izvietots” atzīme šajā versijā glabājas katra telefona pārlūkā atsevišķi; kopīgai reāllaika atzīmēšanai vajadzēs nelielu datubāzi.</p>
+</aside>
+
+<div id="calOverlay" class="cal-overlay">
+  <div class="cal-head">
+    <button id="cancelCal" class="iconbtn">← Atcelt</button>
+    <div><b>1/2 — atzīmē objektu LOF kartē</b><div class="hint">Pietuvini karti un izvēlies krustojumu, tiltu, ēkas stūri vai citu precīzu objektu.</div></div>
+    <div class="cal-tools">
+      <button id="zoomOutBtn" class="iconbtn" title="Attālināt">−</button>
+      <div id="zoomLabel" class="zoom-label">100%</div>
+      <button id="zoomInBtn" class="iconbtn" title="Pietuvināt">+</button>
+      <button id="zoomFitBtn" class="iconbtn" title="Ietilpināt ekrānā">Fit</button>
+    </div>
+  </div>
+  <div id="calWrap" class="cal-wrap"><img id="calImg" src="lof-map.jpg" alt="LOF karte"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const IMG_W=2481, IMG_H=1754;
+const CONTROLS=[{"id":"21","px":1502.0,"py":1124.0},{"id":"23","px":1575.0,"py":297.0},{"id":"31","px":992.0,"py":836.0},{"id":"32","px":814.0,"py":1189.0},{"id":"33","px":1654.0,"py":927.0},{"id":"35","px":753.0,"py":952.0},{"id":"41","px":1825.0,"py":501.0},{"id":"42","px":1331.0,"py":409.0},{"id":"43","px":1211.0,"py":512.0},{"id":"44","px":807.0,"py":800.0},{"id":"46","px":1517.0,"py":947.0},{"id":"47","px":283.0,"py":1061.0},{"id":"48","px":2353.0,"py":716.0},{"id":"49","px":1855.0,"py":790.0},{"id":"50","px":697.0,"py":1135.0},{"id":"51","px":1333.0,"py":587.0},{"id":"52","px":1713.0,"py":266.0},{"id":"53","px":2288.0,"py":406.0},{"id":"54","px":1642.0,"py":751.0},{"id":"55","px":413.0,"py":928.0},{"id":"56","px":2135.0,"py":284.0},{"id":"57","px":2108.0,"py":633.0},{"id":"61","px":2175.0,"py":875.0},{"id":"62","px":1646.0,"py":1199.0},{"id":"63","px":1509.0,"py":1582.0},{"id":"81","px":1673.0,"py":1514.0},{"id":"82","px":2399.0,"py":1047.0},{"id":"83","px":1931.0,"py":145.0},{"id":"91","px":1593.0,"py":625.0},{"id":"92","px":106.0,"py":1136.0}];
+const START={id:"START",px:1063.8,py:738.6};
+const ALL=[START,...CONTROLS];
+const EXPECTED_IDS=["21","23","31","32","33","35","41","42","43","44","46","47","48","49","50","51","52","53","54","55","56","57","61","62","63","81","82","83","91","92"];
+(function validateControls(){
+  const ids=CONTROLS.map(c=>c.id);
+  const missing=EXPECTED_IDS.filter(id=>!ids.includes(id));
+  const duplicate=ids.filter((id,i)=>ids.indexOf(id)!==i);
+  if(CONTROLS.length!==30 || missing.length || duplicate.length){
+    console.error("KP datu kļūda", {count:CONTROLS.length,missing,duplicate});
+  } else {
+    console.info("VK v4: ielādēti visi 30 LOF kontrolpunkti.");
+  }
+})();
+const R=6378137;
+const $=id=>document.getElementById(id);
+
+const map=L.map('map',{zoomControl:false}).setView([57.0,24.3],8);
+L.control.zoom({position:'topright'}).addTo(map);
+const osm=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+const esri=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:20,attribution:'Esri'});
+const baseLayers={"OpenStreetMap":osm,"Satelītkarte":esri};
+const overlayLayers={};
+const layerControl=L.control.layers(baseLayers,overlayLayers,{position:'topright',collapsed:true}).addTo(map);
+
+let pairs=[];
+let model=null;
+let markers={};
+let targetId="21";
+let targetLatLng=null;
+let userLatLng=null,userAcc=null,userMarker=null,accCircle=null,routeLine=null,watchId=null;
+let gpsStarting=false;
+let pendingNearest=false;
+let lofOverlay=null, lofVisible=true, lofOpacity=.55, lvmLayer=null;
+let pendingPixel=null;
+let mapCalMarker=null;
+let calZoom=1;
+let placed=JSON.parse(localStorage.getItem('vk2026_placed')||'{}');
+
+function merc(ll){
+  let lat=Math.max(-85.05112878,Math.min(85.05112878,ll.lat))*Math.PI/180;
+  return {x:R*ll.lng*Math.PI/180,y:R*Math.log(Math.tan(Math.PI/4+lat/2))};
+}
+function unmerc(p){
+  return L.latLng((2*Math.atan(Math.exp(p.y/R))-Math.PI/2)*180/Math.PI,p.x/R*180/Math.PI);
+}
+function solve3(A,b){
+  A=A.map((r,i)=>[...r,b[i]]);
+  for(let i=0;i<3;i++){
+    let m=i; for(let j=i+1;j<3;j++) if(Math.abs(A[j][i])>Math.abs(A[m][i]))m=j;
+    [A[i],A[m]]=[A[m],A[i]];
+    let d=A[i][i]; if(Math.abs(d)<1e-12) throw Error("Singulāra matrica");
+    for(let k=i;k<4;k++)A[i][k]/=d;
+    for(let j=0;j<3;j++) if(j!==i){let f=A[j][i];for(let k=i;k<4;k++)A[j][k]-=f*A[i][k];}
+  }
+  return A.map(r=>r[3]);
+}
+function fitAffine(ps){
+  // Least squares: [px py 1] -> WebMercator X/Y
+  let M=[[0,0,0],[0,0,0],[0,0,0]], bx=[0,0,0], by=[0,0,0];
+  for(const p of ps){
+    let v=[p.px,p.py,1], q=merc(L.latLng(p.lat,p.lng));
+    for(let i=0;i<3;i++){for(let j=0;j<3;j++)M[i][j]+=v[i]*v[j];bx[i]+=v[i]*q.x;by[i]+=v[i]*q.y;}
+  }
+  let cx=solve3(M,bx), cy=solve3(M,by);
+  return {a:cx[0],b:cx[1],c:cx[2],d:cy[0],e:cy[1],f:cy[2]};
+}
+function imgToMerc(px,py){return {x:model.a*px+model.b*py+model.c,y:model.d*px+model.e*py+model.f}}
+function imgToLatLng(px,py){return unmerc(imgToMerc(px,py))}
+function residualMeters(){
+  if(!model||pairs.length<3)return null;
+  let ss=0; for(const p of pairs){let a=imgToMerc(p.px,p.py),b=merc(L.latLng(p.lat,p.lng));ss+=(a.x-b.x)**2+(a.y-b.y)**2}
+  return Math.sqrt(ss/pairs.length);
+}
+
+class AffineImageOverlay extends L.Layer{
+  constructor(url){
+    super();
+    this.url=url;
+    this.opacity=.55;
+    this.img=new Image();
+    this.img.src=url;
+  }
+  onAdd(map){
+    this.map=map;
+    this.canvas=L.DomUtil.create('canvas','leaflet-zoom-animated');
+    this.canvas.style.position='absolute';
+    this.canvas.style.pointerEvents='none';
+    this.canvas.style.transformOrigin='0 0';
+    map.getPanes().overlayPane.appendChild(this.canvas);
+
+    // SVARĪGI: panoramēšanas laikā Leaflet pats pārvieto overlayPane.
+    // Tāpēc slāni pārrēķinām tikai pēc skata maiņas beigām, nevis katrā "move" kadrā.
+    this._draw=()=>this.draw();
+    map.on('moveend zoomend resize viewreset',this._draw);
+    this.img.onload=()=>this.draw();
+    this.draw();
+  }
+  onRemove(map){
+    map.off('moveend zoomend resize viewreset',this._draw);
+    this.canvas.remove();
+  }
+  setOpacity(v){
+    this.opacity=v;
+    this.draw();
+  }
+  draw(){
+    if(!model||!this.map||!this.img.complete)return;
+
+    // Lietojam LAYER punktus, nevis CONTAINER punktus.
+    // Tas novērš "dubulto pārvietošanos" panoramēšanas laikā.
+    const p0=this.map.latLngToLayerPoint(imgToLatLng(0,0));
+    const px=this.map.latLngToLayerPoint(imgToLatLng(IMG_W,0));
+    const py=this.map.latLngToLayerPoint(imgToLatLng(0,IMG_H));
+    const pxy=this.map.latLngToLayerPoint(imgToLatLng(IMG_W,IMG_H));
+
+    const minX=Math.floor(Math.min(p0.x,px.x,py.x,pxy.x))-4;
+    const minY=Math.floor(Math.min(p0.y,px.y,py.y,pxy.y))-4;
+    const maxX=Math.ceil(Math.max(p0.x,px.x,py.x,pxy.x))+4;
+    const maxY=Math.ceil(Math.max(p0.y,px.y,py.y,pxy.y))+4;
+
+    const w=Math.max(1,maxX-minX);
+    const h=Math.max(1,maxY-minY);
+
+    this.canvas.width=w;
+    this.canvas.height=h;
+    this.canvas.style.width=w+'px';
+    this.canvas.style.height=h+'px';
+    L.DomUtil.setPosition(this.canvas,L.point(minX,minY));
+
+    const ctx=this.canvas.getContext('2d');
+    ctx.clearRect(0,0,w,h);
+    ctx.globalAlpha=this.opacity;
+
+    const a=(px.x-p0.x)/IMG_W;
+    const b=(px.y-p0.y)/IMG_W;
+    const c=(py.x-p0.x)/IMG_H;
+    const d=(py.y-p0.y)/IMG_H;
+    const e=p0.x-minX;
+    const f=p0.y-minY;
+
+    ctx.setTransform(a,b,c,d,e,f);
+    ctx.drawImage(this.img,0,0,IMG_W,IMG_H);
+    ctx.setTransform(1,0,0,1,0,0);
+  }
+}
+
+function renderSelect(){
+  $('kpSelect').innerHTML=CONTROLS.map(c=>`<option value="${c.id}">${placed[c.id]?'✓ ':''}KP ${c.id}</option>`).join('');
+  $('kpSelect').value=targetId;
+}
+function makeIcon(id,sel=false){return L.divIcon({className:'',html:`<div class="kp-marker ${sel?'sel':''}">${id}</div>`,iconSize:[34,34],iconAnchor:[17,17]})}
+function renderControls(){
+  Object.values(markers).forEach(m=>map.removeLayer(m));markers={};
+  if(!model)return;
+  for(const c of CONTROLS){
+    const ll=imgToLatLng(c.px,c.py);
+    markers[c.id]=L.marker(ll,{icon:makeIcon(c.id,c.id===targetId)}).addTo(map).on('click',()=>selectTarget(c.id));
+  }
+  selectTarget(targetId,false);
+  if(!lofOverlay){lofOverlay=new AffineImageOverlay('lof-map.jpg'); if(lofVisible)lofOverlay.addTo(map);}
+  else lofOverlay.draw();
+}
+function selectTarget(id,pan=false){
+  targetId=id;$('kpSelect').value=id;
+  Object.entries(markers).forEach(([k,m])=>m.setIcon(makeIcon(k,k===id)));
+  const c=CONTROLS.find(x=>x.id===id); if(model&&c){targetLatLng=imgToLatLng(c.px,c.py);if(pan)map.setView(targetLatLng,Math.max(map.getZoom(),16));}
+  updateNav(); drawCrop(); updatePlacedBtn();
+}
+function havBearing(a,b){
+  let p1=a.lat*Math.PI/180,p2=b.lat*Math.PI/180,dl=(b.lng-a.lng)*Math.PI/180;
+  let y=Math.sin(dl)*Math.cos(p2),x=Math.cos(p1)*Math.sin(p2)-Math.sin(p1)*Math.cos(p2)*Math.cos(dl);
+  return (Math.atan2(y,x)*180/Math.PI+360)%360;
+}
+function arrowFor(deg){return ['↑','↗','→','↘','↓','↙','←','↖'][Math.round(deg/45)%8]}
+function updateNav(){
+  $('acc').textContent=userAcc?`±${Math.round(userAcc)}m`:'—';
+  if(!model){$('dist').textContent='—';$('bearing').textContent='—';$('status').className='status warn';$('status').textContent='Nepieciešama kartes piesaiste koordinātēm (⚙️).';return}
+  if(!userLatLng||!targetLatLng){$('dist').textContent='—';$('bearing').textContent='—';$('status').className='status warn';$('status').textContent='Ieslēdz GPS un atļauj atrašanās vietu.';return}
+  let d=map.distance(userLatLng,targetLatLng),b=havBearing(userLatLng,targetLatLng);
+  $('dist').textContent=d<1000?`${Math.round(d)}m`:`${(d/1000).toFixed(1)}km`;
+  $('bearing').textContent=`${Math.round(b)}° ${arrowFor(b)}`;
+  if(routeLine)map.removeLayer(routeLine); routeLine=L.polyline([userLatLng,targetLatLng],{color:'#ffe239',weight:3,dashArray:'6 8'}).addTo(map);
+  let st=$('status');
+  if(userAcc>25){st.className='status bad';st.textContent=`GPS precizitāte tikai ±${Math.round(userAcc)} m — pēdējos metros pārbaudi LOF reljefa objektu.`}
+  else if(d<=10){st.className='status good';st.textContent=`KP ${targetId} tuvumā — ${Math.round(d)} m. Salīdzini LOF fragmentu ar reljefu.`; if(navigator.vibrate)navigator.vibrate(80)}
+  else if(d<=35){st.className='status warn';st.textContent=`Tuvojies KP ${targetId}. Pēdējos metros skaties arī LOF karti.`}
+  else{st.className='status';st.textContent=`Virzies uz KP ${targetId}.`}
+}
+function applyGpsPosition(p){
+  userLatLng=L.latLng(p.coords.latitude,p.coords.longitude);
+  userAcc=p.coords.accuracy;
+
+  if(!userMarker){
+    userMarker=L.marker(userLatLng,{
+      icon:L.divIcon({
+        className:'',
+        html:'<div class="user-dot"></div>',
+        iconSize:[20,20],
+        iconAnchor:[10,10]
+      })
+    }).addTo(map);
+    accCircle=L.circle(userLatLng,{
+      radius:userAcc,
+      color:'#1976ff',
+      weight:1,
+      fillOpacity:.08
+    }).addTo(map);
+  }else{
+    userMarker.setLatLng(userLatLng);
+    accCircle.setLatLng(userLatLng).setRadius(userAcc);
+  }
+
+  $('gpsBtn').disabled=false;
+  $('gpsBtn').textContent='⏹ Apturēt GPS';
+  gpsStarting=false;
+  updateNav();
+
+  if(pendingNearest){
+    pendingNearest=false;
+    nearest();
+  }
+}
+
+function gpsErrorMessage(e){
+  if(e.code===1){
+    return 'Atrašanās vieta šai lapai nav atļauta. iPhone: Safari adreses joslā atver vietnes iestatījumus → Location/Atrašanās vieta → Allow/Atļaut. Ja tur nav pieejams, pārbaudi Settings → Privacy & Security → Location Services.';
+  }
+  if(e.code===2){
+    return 'Telefons pašlaik nevar noteikt atrašanās vietu. Pārbaudi, vai iPhone/Android ir ieslēgti Location Services/Atrašanās vietas pakalpojumi.';
+  }
+  if(e.code===3){
+    return 'GPS atrašanās vietas noteikšana aizņēma pārāk ilgi. Pamēģini vēlreiz ārā vai vietā ar labāku GPS uztveršanu.';
+  }
+  return 'GPS kļūda: '+(e.message||'nezināma kļūda');
+}
+
+function handleGpsError(e){
+  gpsStarting=false;
+  if(watchId!==null){
+    navigator.geolocation.clearWatch(watchId);
+    watchId=null;
+  }
+  $('gpsBtn').disabled=false;
+  $('gpsBtn').textContent='📍 Pieprasīt GPS';
+  $('status').className='status bad';
+  $('status').textContent=gpsErrorMessage(e);
+}
+
+function startGps(){
+  if(gpsStarting)return;
+
+  if(watchId!==null){
+    navigator.geolocation.clearWatch(watchId);
+    watchId=null;
+    $('gpsBtn').disabled=false;
+    $('gpsBtn').textContent='📍 Pieprasīt GPS';
+    $('status').className='status warn';
+    $('status').textContent='GPS apturēts. Nospied “Pieprasīt GPS”, lai turpinātu.';
+    return;
+  }
+
+  if(!window.isSecureContext){
+    $('status').className='status bad';
+    $('status').textContent='GPS pārlūkā darbojas tikai HTTPS lapā.';
+    return;
+  }
+
+  if(!navigator.geolocation){
+    $('status').className='status bad';
+    $('status').textContent='Šī pārlūkprogramma neatbalsta atrašanās vietas noteikšanu.';
+    return;
+  }
+
+  gpsStarting=true;
+  $('gpsBtn').disabled=true;
+  $('gpsBtn').textContent='⏳ Gaida GPS atļauju…';
+  $('status').className='status warn';
+  $('status').textContent='Atļauj pārlūkam izmantot tavu atrašanās vietu.';
+
+  // SVARĪGI iPhone/Safari:
+  // getCurrentPosition tiek izsaukts UZREIZ no pogas pieskāriena.
+  // Pirms tā nav neviena await/Permissions API pieprasījuma.
+  navigator.geolocation.getCurrentPosition(
+    p=>{
+      applyGpsPosition(p);
+
+      watchId=navigator.geolocation.watchPosition(
+        applyGpsPosition,
+        e=>{
+          // Vienreizējs timeout pēc pirmā veiksmīgā fix nav kritisks.
+          if(e.code===3)return;
+          handleGpsError(e);
+        },
+        {
+          enableHighAccuracy:true,
+          maximumAge:1000,
+          timeout:20000
+        }
+      );
+    },
+    handleGpsError,
+    {
+      enableHighAccuracy:true,
+      maximumAge:0,
+      timeout:20000
+    }
+  );
+}
+
+function nearest(){
+  if(!model){
+    alert('Vispirms jāpabeidz LOF kartes piesaiste koordinātēm.');
+    return;
+  }
+  if(!userLatLng){
+    pendingNearest=true;
+    startGps();
+    return;
+  }
+  let best=null;
+  for(const c of CONTROLS){
+    let ll=imgToLatLng(c.px,c.py),d=map.distance(userLatLng,ll);
+    if(!best||d<best.d)best={id:c.id,d};
+  }
+  if(best)selectTarget(best.id,true);
+}
+function drawCrop(){
+  const can=$('lofCrop'),ctx=can.getContext('2d'),c=CONTROLS.find(x=>x.id===targetId); if(!c)return;
+  let img=new Image(); img.onload=()=>{let cropW=520,cropH=208,sx=Math.max(0,Math.min(IMG_W-cropW,c.px-cropW/2)),sy=Math.max(0,Math.min(IMG_H-cropH,c.py-cropH/2));ctx.clearRect(0,0,can.width,can.height);ctx.drawImage(img,sx,sy,cropW,cropH,0,0,can.width,can.height);ctx.strokeStyle='#ffec00';ctx.lineWidth=5;ctx.beginPath();ctx.arc(can.width/2,can.height/2,28,0,Math.PI*2);ctx.stroke();};img.src='lof-map.jpg';
+}
+function updatePlacedBtn(){
+  $('placedBtn').textContent=placed[targetId]?'↩ Atcelt':'✓ Izvietots';
+  $('placedBtn').className='btn '+(placed[targetId]?'secondary':'good');
+}
+function togglePlaced(){placed[targetId]=!placed[targetId];localStorage.setItem('vk2026_placed',JSON.stringify(placed));renderSelect();updatePlacedBtn()}
+
+function renderPairs(){
+  $('pairs').innerHTML=pairs.map((p,i)=>`<div class="pair"><b>${i+1}.</b> LOF (${Math.round(p.px)}, ${Math.round(p.py)}) → ${p.lat.toFixed(6)}, ${p.lng.toFixed(6)} <button onclick="removePair(${i})" style="float:right">✕</button></div>`).join('');
+  if(pairs.length>=3){
+    try{
+      model=fitAffine(pairs);
+      let err=residualMeters();
+      if(pairs.length===3){
+        $('calStats').className='status warn';
+        $('calStats').textContent='Piesaiste darbojas ar 3 punktiem, bet tā vēl nav uzticama. Pievieno vēl vismaz 2–3 punktus dažādās kartes malās.';
+      }else{
+        $('calStats').className='status '+(err<10?'good':err<25?'warn':'bad');
+        $('calStats').textContent=`Piesaiste aktīva. RMS kļūda: ~${err.toFixed(1)} m (${pairs.length} punkti).`;
+      }
+      localStorage.setItem('vk2026_pairs',JSON.stringify(pairs));
+      $('copyLinkBtn').disabled=false;
+      renderControls();
+    }catch(e){
+      model=null;
+      $('calStats').textContent='Piesaisti nevar aprēķināt: '+e.message
+    }
+  } else {
+    model=null;
+    $('copyLinkBtn').disabled=true;
+    $('calStats').className='status warn';
+    $('calStats').textContent=`Vajag vēl ${3-pairs.length} piesaistes punktu(s).`
+  }
+  updateNav();
+}
+window.removePair=i=>{pairs.splice(i,1);renderPairs()}
+
+function setCalZoom(next, keepCenter=true){
+  const wrap=$('calWrap'), img=$('calImg');
+  const oldZoom=calZoom;
+  const oldCenterX=wrap.scrollLeft + wrap.clientWidth/2;
+  const oldCenterY=wrap.scrollTop + wrap.clientHeight/2;
+  calZoom=Math.max(1,Math.min(6,next));
+  img.style.width=(calZoom*100)+'%';
+  $('zoomLabel').textContent=Math.round(calZoom*100)+'%';
+
+  if(keepCenter){
+    requestAnimationFrame(()=>{
+      const factor=calZoom/oldZoom;
+      wrap.scrollLeft=Math.max(0,oldCenterX*factor-wrap.clientWidth/2);
+      wrap.scrollTop=Math.max(0,oldCenterY*factor-wrap.clientHeight/2);
+    });
+  }
+}
+function fitCalMap(){
+  calZoom=1;
+  $('calImg').style.width='100%';
+  $('zoomLabel').textContent='100%';
+  $('calWrap').scrollTo({left:0,top:0,behavior:'smooth'});
+}
+function beginPair(){
+  $('calOverlay').classList.add('open');
+  pendingPixel=null;
+  document.querySelectorAll('.cross').forEach(x=>x.remove());
+  requestAnimationFrame(()=>setCalZoom(calZoom,false));
+}
+
+$('zoomInBtn').onclick=()=>setCalZoom(calZoom+0.5);
+$('zoomOutBtn').onclick=()=>setCalZoom(calZoom-0.5);
+$('zoomFitBtn').onclick=fitCalMap;
+
+// Pele/trackpad: rullītis virs LOF kartes pietuvina/attālina.
+$('calWrap').addEventListener('wheel',e=>{
+  if(!$('calOverlay').classList.contains('open')) return;
+  e.preventDefault();
+  setCalZoom(calZoom+(e.deltaY<0?0.25:-0.25));
+},{passive:false});
+
+// Dubultklikšķis ātri pietuvina.
+$('calImg').addEventListener('dblclick',e=>{
+  e.preventDefault();
+  setCalZoom(calZoom+0.5);
+});
+
+$('calImg').addEventListener('click',e=>{
+  let r=e.target.getBoundingClientRect(),px=(e.clientX-r.left)/r.width*IMG_W,py=(e.clientY-r.top)/r.height*IMG_H;pendingPixel={px,py};
+  let cross=document.createElement('div');cross.className='cross';
+  cross.style.left=(e.target.offsetLeft+e.offsetX)+'px';
+  cross.style.top=(e.target.offsetTop+e.offsetY)+'px';
+  $('calWrap').appendChild(cross);
+  setTimeout(()=>{
+    $('calOverlay').classList.remove('open');
+    $('map').classList.add('calibrating');
+    alert('2/2 — tagad uz pamatkartes ar KRUSTIŅU pieskaries TIEŠI TAM PAŠAM objektam. Vari vispirms pietuvināt karti.');
+    map.once('click',onMapPair)
+  },180);
+});
+function onMapPair(e){
+  $('map').classList.remove('calibrating');
+
+  if(mapCalMarker){
+    map.removeLayer(mapCalMarker);
+    mapCalMarker=null;
+  }
+
+  mapCalMarker=L.marker(e.latlng,{
+    interactive:false,
+    zIndexOffset:3000,
+    icon:L.divIcon({
+      className:'',
+      html:'<div class="map-cal-cross"><div class="map-cal-cross-ring"></div></div>',
+      iconSize:[30,30],
+      iconAnchor:[15,15]
+    })
+  }).addTo(map);
+
+  setTimeout(()=>{
+    if(mapCalMarker){
+      map.removeLayer(mapCalMarker);
+      mapCalMarker=null;
+    }
+  },1200);
+
+  pairs.push({px:pendingPixel.px,py:pendingPixel.py,lat:e.latlng.lat,lng:e.latlng.lng});
+  pendingPixel=null;
+  renderPairs();
+  $('adminPanel').classList.add('open');
+}
+function cfg(){return {v:1,pairs,wms:{url:$('wmsUrl').value,layer:$('wmsLayer').value}}}
+function encodeCfg(o){return btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replaceAll('+','-').replaceAll('/','_').replaceAll('=','')}
+function decodeCfg(s){s=s.replaceAll('-','+').replaceAll('_','/');while(s.length%4)s+='=';return JSON.parse(decodeURIComponent(escape(atob(s))))}
+function instructorLink(){let u=new URL('index.html',location.href);u.hash='cfg='+encodeCfg(cfg());return u.toString()}
+async function copyLink(){try{await navigator.clipboard.writeText(instructorLink());alert('Instruktora saite nokopēta.')}catch(e){prompt('Nokopē saiti:',instructorLink())}}
+function exportCfg(){let b=new Blob([JSON.stringify(cfg(),null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='vejinu-kauss-konfiguracija.json';a.click();URL.revokeObjectURL(a.href)}
+function importCfg(o){if(!o||!Array.isArray(o.pairs))throw Error('Nederīga konfigurācija');pairs=o.pairs;if(o.wms){$('wmsUrl').value=o.wms.url||$('wmsUrl').value}$('adminPanel').classList.add('open');renderPairs()}
+
+async function loadWms(){
+  let url=$('wmsUrl').value.trim(),status=$('wmsStatus');status.textContent='Ielādē...';
+  try{
+    let sep=url.includes('?')?'&':'?',r=await fetch(url+sep+'service=WMS&request=GetCapabilities');
+    if(!r.ok)throw Error(r.status+' '+r.statusText);let xml=new DOMParser().parseFromString(await r.text(),'text/xml');
+    let names=[...xml.querySelectorAll('Layer > Name')].map(x=>x.textContent.trim()).filter(Boolean);
+    $('wmsLayer').innerHTML='<option value="">— izvēlies slāni —</option>'+names.map(n=>`<option>${n}</option>`).join('');
+    status.textContent=`Atrasti ${names.length} slāņi.`;
+  }catch(e){status.textContent='Neizdevās nolasīt WMS slāņus pārlūkā. OSM/satelītkarte turpina darboties. '+e.message}
+}
+function addWms(){
+  let layer=$('wmsLayer').value;if(!layer){alert('Izvēlies LVM slāni.');return}
+  if(lvmLayer){map.removeLayer(lvmLayer);try{layerControl.removeLayer(lvmLayer)}catch(e){}}
+  lvmLayer=L.tileLayer.wms($('wmsUrl').value,{layers:layer,format:'image/png',transparent:true,version:'1.3.0',attribution:'LVM GEO'}).addTo(map);
+  layerControl.addOverlay(lvmLayer,'LVM GEO');$('wmsStatus').textContent='LVM slānis pievienots.';
+}
+
+$('kpSelect').addEventListener('change',e=>selectTarget(e.target.value,true));
+$('nearestBtn').onclick=nearest;$('gpsBtn').onclick=startGps;$('centerBtn').onclick=()=>targetLatLng&&map.setView(targetLatLng,18);
+$('cropBtn').onclick=()=>{$('cropBox').classList.toggle('open');drawCrop()};$('placedBtn').onclick=togglePlaced;
+$('adminBtn').onclick=()=>$('adminPanel').classList.add('open');$('closeAdmin').onclick=()=>$('adminPanel').classList.remove('open');
+$('addPairBtn').onclick=beginPair;$('resetPairsBtn').onclick=()=>{if(confirm('Notīrīt visus piesaistes punktus?')){pairs=[];localStorage.removeItem('vk2026_pairs');if(lofOverlay){map.removeLayer(lofOverlay);lofOverlay=null}renderPairs()}};
+$('cancelCal').onclick=()=>{
+  $('calOverlay').classList.remove('open');
+  $('map').classList.remove('calibrating');
+};
+$('opacity').oninput=e=>{lofOpacity=e.target.value/100;if(lofOverlay)lofOverlay.setOpacity(lofOpacity)};
+$('overlayToggle').onchange=e=>{lofVisible=e.target.checked;if(!lofOverlay)return;if(lofVisible){if(!map.hasLayer(lofOverlay))lofOverlay.addTo(map);else lofOverlay.draw()}else if(map.hasLayer(lofOverlay))map.removeLayer(lofOverlay)};
+$('copyLinkBtn').onclick=copyLink;$('exportBtn').onclick=exportCfg;
+$('importFile').onchange=async e=>{try{importCfg(JSON.parse(await e.target.files[0].text()))}catch(err){alert(err.message)}};
+$('loadWmsBtn').onclick=loadWms;$('addWmsBtn').onclick=addWms;
+
+renderSelect();drawCrop();
+try{
+  if(location.hash.startsWith('#cfg=')){let o=decodeCfg(location.hash.slice(5));pairs=o.pairs||[];if(o.wms?.url)$('wmsUrl').value=o.wms.url;renderPairs();}
+  else{pairs=JSON.parse(localStorage.getItem('vk2026_pairs')||'[]');renderPairs();}
+}catch(e){console.warn(e);renderPairs()}
+</script>
+</body>
+</html>
