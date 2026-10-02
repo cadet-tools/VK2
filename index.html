@@ -271,13 +271,16 @@ body.panel-collapsed .sheet{transform:translateY(calc(100% + 40px));opacity:0;po
   .control-info-actions #controlInfoNavigate{order:-1}
 }
 
+
+.tool-points-row{margin-top:8px}
+#toolPointsBtn.points-hidden{background:#3b2f22;color:#ffd9a0}
 </style>
 </head>
 <body>
 <div id="map"></div>
 
 <div class="topbar">
-  <div class="card title"><b>Vējiņu kauss 2026</b><span>🔒 Instruktoru režīms · v11</span></div>
+  <div class="card title"><b>Vējiņu kauss 2026</b><span>🔒 Instruktoru režīms · v12</span></div>
   <div class="spacer"></div>
   <button id="syncBtn" class="iconbtn syncbtn" title="Tiešsaistes KP statuss">DB —</button>
   <button id="panelToggleBtn" class="iconbtn" title="Paslēpt/rādīt paneli">▾</button>
@@ -307,6 +310,10 @@ body.panel-collapsed .sheet{transform:translateY(calc(100% + 40px));opacity:0;po
       <strong id="opacityValue">55%</strong>
     </div>
     <input id="instructorOpacity" type="range" min="0" max="100" value="55" step="1" aria-label="LOF kartes caurspīdīgums">
+  </div>
+
+  <div class="row tool-points-row">
+    <button id="toolPointsBtn" class="btn secondary grow">◉ Rīka punkti: REDZAMI</button>
   </div>
 
   <div id="cropBox" class="cropbox">
@@ -487,7 +494,7 @@ const CONTROLS=[{"id":"21","px":1502.0,"py":1124.0},{"id":"23","px":1575.0,"py":
 const START={id:"START",px:1063.8,py:738.6};
 const ALL=[START,...CONTROLS];
 const EXPECTED_IDS=["21","23","31","32","33","35","41","42","43","44","46","47","48","49","50","51","52","53","54","55","56","57","61","62","63","81","82","83","91","92"];
-const CONTROL_INFO={"21":{"feature":"Taka / ceļš","placement":"Krustojums","look":"Meklē divu taku vai ceļu krustojumu.","put":"Novieto kontrolpunktu tieši krustojuma centrā."},"23":{"feature":"Taka / ceļš","placement":"Krustojums","look":"Meklē divu taku vai ceļu krustojumu.","put":"Novieto kontrolpunktu tieši krustojuma centrā."},"31":{"feature":"Elektrolīnijas balsts","placement":"Dienvidaustrumu puse","look":"Meklē elektrolīnijas balstu.","put":"Novieto kontrolpunktu pie balsta dienvidaustrumu puses."},"32":{"feature":"Taka / ceļš","placement":"Krustojums","look":"Meklē divu taku vai ceļu krustojumu.","put":"Novieto kontrolpunktu tieši krustojuma centrā."},"33":{"feature":"Reljefa ieloks (re-entrants)","placement":"Objekta centrs","look":"Meklē reljefa ieloku — ieejošu ieplaku nogāzē.","put":"Novieto kontrolpunktu apļa centra vietā ielokā; leģenda nenorāda īpašu malu."},"35":{"feature":"Paugurs","placement":"Objekta centrs","look":"Meklē kartē iezīmēto pauguru.","put":"Novieto kontrolpunktu apļa centra vietā uz paugura; leģenda nenorāda īpašu malu."},"41":{"feature":"Taka / ceļš","placement":"Savienojums","look":"Meklē vietu, kur viena taka pievienojas otrai.","put":"Novieto kontrolpunktu taku savienojuma punktā."},"42":{"feature":"Ēka / būve","placement":"Objekta vieta","look":"Meklē kartē norādīto ēku vai būvi.","put":"Precīzo vietu nosaka apļa centrs; leģenda nenorāda atsevišķu ēkas pusi."},"43":{"feature":"Taka / ceļš","placement":"Savienojums","look":"Meklē vietu, kur viena taka pievienojas otrai.","put":"Novieto kontrolpunktu taku savienojuma punktā."},"44":{"feature":"Elektrolīnijas balsts","placement":"Objekta vieta","look":"Meklē elektrolīnijas balstu.","put":"Novieto kontrolpunktu pie balsta apļa centra vietā; leģenda nenorāda īpašu pusi."},"46":{"feature":"Taka / ceļš","placement":"Krustojums","look":"Meklē divu taku vai ceļu krustojumu.","put":"Novieto kontrolpunktu tieši krustojuma centrā."},"47":{"feature":"Taka / ceļš","placement":"Savienojums","look":"Meklē vietu, kur viena taka pievienojas otrai.","put":"Novieto kontrolpunktu taku savienojuma punktā."},"48":{"feature":"Taka / ceļš","placement":"Savienojums","look":"Meklē vietu, kur viena taka pievienojas otrai.","put":"Novieto kontrolpunktu taku savienojuma punktā."},"49":{"feature":"Taka / ceļš","placement":"Krustojums","look":"Meklē divu taku vai ceļu krustojumu.","put":"Novieto kontrolpunktu tieši krustojuma centrā."},"50":{"feature":"Paugurs","placement":"Objekta centrs","look":"Meklē kartē iezīmēto pauguru.","put":"Novieto kontrolpunktu apļa centra vietā uz paugura; leģenda nenorāda īpašu malu."},"51":{"feature":"Taka / ceļš","placement":"Savienojums","look":"Meklē vietu, kur viena taka pievienojas otrai.","put":"Novieto kontrolpunktu taku savienojuma punktā."},"52":{"feature":"Taka / ceļš","placement":"Savienojums","look":"Meklē vietu, kur viena taka pievienojas otrai.","put":"Novieto kontrolpunktu taku savienojuma punktā."},"53":{"feature":"Taka / ceļš","placement":"Savienojums","look":"Meklē vietu, kur viena taka pievienojas otrai.","put":"Novieto kontrolpunktu taku savienojuma punktā."},"54":{"feature":"Paugurs","placement":"Objekta centrs","look":"Meklē kartē iezīmēto pauguru.","put":"Novieto kontrolpunktu apļa centra vietā uz paugura; leģenda nenorāda īpašu malu."},"55":{"feature":"Taka / ceļš","placement":"Rietumu gals","look":"Meklē takas vai ceļa rietumu galu.","put":"Novieto kontrolpunktu tieši takas rietumu gala punktā."},"56":{"feature":"Mazs pauguriņš (knoll)","placement":"Objekta centrs","look":"Meklē nelielu, izteiktu pauguriņu.","put":"Novieto kontrolpunktu uz pauguriņa apļa centra vietā."},"57":{"feature":"Paugurs","placement":"Objekta centrs","look":"Meklē kartē iezīmēto pauguru.","put":"Novieto kontrolpunktu apļa centra vietā uz paugura; leģenda nenorāda īpašu malu."},"61":{"feature":"Taka / ceļš","placement":"Krustojums","look":"Meklē divu taku vai ceļu krustojumu.","put":"Novieto kontrolpunktu tieši krustojuma centrā."},"62":{"feature":"Paugurs","placement":"Objekta centrs","look":"Meklē kartē iezīmēto pauguru.","put":"Novieto kontrolpunktu apļa centra vietā uz paugura; leģenda nenorāda īpašu malu."},"63":{"feature":"Taka / ceļš","placement":"Savienojums","look":"Meklē vietu, kur viena taka pievienojas otrai.","put":"Novieto kontrolpunktu taku savienojuma punktā."},"81":{"feature":"Taka / ceļš","placement":"Krustojums","look":"Meklē divu taku vai ceļu krustojumu.","put":"Novieto kontrolpunktu tieši krustojuma centrā."},"82":{"feature":"Paugurs","placement":"Objekta centrs","look":"Meklē kartē iezīmēto pauguru.","put":"Novieto kontrolpunktu apļa centra vietā uz paugura; leģenda nenorāda īpašu malu."},"83":{"feature":"Paugurs","placement":"Objekta centrs","look":"Meklē kartē iezīmēto pauguru.","put":"Novieto kontrolpunktu apļa centra vietā uz paugura; leģenda nenorāda īpašu malu."},"91":{"feature":"Paugurs","placement":"Objekta centrs","look":"Meklē kartē iezīmēto pauguru.","put":"Novieto kontrolpunktu apļa centra vietā uz paugura; leģenda nenorāda īpašu malu."},"92":{"feature":"Paugurs","placement":"Objekta centrs","look":"Meklē kartē iezīmēto pauguru.","put":"Novieto kontrolpunktu apļa centra vietā uz paugura; leģenda nenorāda īpašu malu."}};
+const CONTROL_INFO={"21":{"feature":"Taku krustojums “+ / X” veida","placement":"Krustojuma centrs","look":"Meklē vietu, kur divas takas krustojas “+” vai “X” veidā.","put":"Novieto kontrolpunktu tieši taku krustojuma centrā."},"23":{"feature":"Taku krustojums “+ / X” veida","placement":"Krustojuma centrs","look":"Meklē vietu, kur divas takas krustojas “+” vai “X” veidā.","put":"Novieto kontrolpunktu tieši taku krustojuma centrā."},"31":{"feature":"Grāvja DA stūris","placement":"Dienvidaustrumu stūris","look":"Meklē kartē norādīto grāvi un nosaki tā dienvidaustrumu stūri.","put":"Novieto kontrolpunktu tieši grāvja dienvidaustrumu stūrī."},"32":{"feature":"Taku krustojums “+ / X” veida","placement":"Krustojuma centrs","look":"Meklē vietu, kur divas takas krustojas “+” vai “X” veidā.","put":"Novieto kontrolpunktu tieši taku krustojuma centrā."},"33":{"feature":"Ieloks","placement":"LOF apļa centrs","look":"Meklē reljefa ieloku kartē norādītajā vietā.","put":"Novieto kontrolpunktu LOF apļa centra vietā ielokā."},"35":{"feature":"Paugurs","placement":"LOF apļa centrs","look":"Meklē kartē norādīto pauguru.","put":"Novieto kontrolpunktu LOF apļa centra vietā uz paugura."},"41":{"feature":"Taku atzars “Y” krustojums","placement":"“Y” atzara centrs","look":"Meklē vietu, kur taka sadalās vai pievienojas citai takai “Y” veidā.","put":"Novieto kontrolpunktu tieši “Y” atzara savienojuma vietā."},"42":{"feature":"Ēka","placement":"LOF apļa centrs","look":"Meklē kartē norādīto ēku.","put":"Novieto kontrolpunktu atbilstoši LOF apļa centra vietai pie ēkas."},"43":{"feature":"Taku atzars “Y” krustojums","placement":"“Y” atzara centrs","look":"Meklē vietu, kur taka sadalās vai pievienojas citai takai “Y” veidā.","put":"Novieto kontrolpunktu tieši “Y” atzara savienojuma vietā."},"44":{"feature":"Grāvis","placement":"LOF apļa centrs","look":"Meklē kartē norādīto grāvi.","put":"Novieto kontrolpunktu LOF apļa centra vietā pie grāvja."},"46":{"feature":"Taku krustojums “+ / X” veida","placement":"Krustojuma centrs","look":"Meklē vietu, kur divas takas krustojas “+” vai “X” veidā.","put":"Novieto kontrolpunktu tieši taku krustojuma centrā."},"47":{"feature":"Taku atzars “Y” krustojums","placement":"“Y” atzara centrs","look":"Meklē vietu, kur taka sadalās vai pievienojas citai takai “Y” veidā.","put":"Novieto kontrolpunktu tieši “Y” atzara savienojuma vietā."},"48":{"feature":"Taku atzars “Y” krustojums","placement":"“Y” atzara centrs","look":"Meklē vietu, kur taka sadalās vai pievienojas citai takai “Y” veidā.","put":"Novieto kontrolpunktu tieši “Y” atzara savienojuma vietā."},"49":{"feature":"Taku krustojums “+ / X” veida","placement":"Krustojuma centrs","look":"Meklē vietu, kur divas takas krustojas “+” vai “X” veidā.","put":"Novieto kontrolpunktu tieši taku krustojuma centrā."},"50":{"feature":"Paugurs","placement":"LOF apļa centrs","look":"Meklē kartē norādīto pauguru.","put":"Novieto kontrolpunktu LOF apļa centra vietā uz paugura."},"51":{"feature":"Taku atzars “Y” krustojums","placement":"“Y” atzara centrs","look":"Meklē vietu, kur taka sadalās vai pievienojas citai takai “Y” veidā.","put":"Novieto kontrolpunktu tieši “Y” atzara savienojuma vietā."},"52":{"feature":"Taku atzars “Y” krustojums","placement":"“Y” atzara centrs","look":"Meklē vietu, kur taka sadalās vai pievienojas citai takai “Y” veidā.","put":"Novieto kontrolpunktu tieši “Y” atzara savienojuma vietā."},"53":{"feature":"Taku atzars “Y” krustojums","placement":"“Y” atzara centrs","look":"Meklē vietu, kur taka sadalās vai pievienojas citai takai “Y” veidā.","put":"Novieto kontrolpunktu tieši “Y” atzara savienojuma vietā."},"54":{"feature":"Paugurs","placement":"LOF apļa centrs","look":"Meklē kartē norādīto pauguru.","put":"Novieto kontrolpunktu LOF apļa centra vietā uz paugura."},"55":{"feature":"Takas R galā","placement":"Rietumu gals","look":"Meklē kartē norādītās takas rietumu galu.","put":"Novieto kontrolpunktu tieši takas rietumu galā."},"56":{"feature":"Mikropaugurs","placement":"LOF apļa centrs","look":"Meklē nelielu, izteiktu mikropauguru.","put":"Novieto kontrolpunktu LOF apļa centra vietā uz mikropaugura."},"57":{"feature":"Paugurs","placement":"LOF apļa centrs","look":"Meklē kartē norādīto pauguru.","put":"Novieto kontrolpunktu LOF apļa centra vietā uz paugura."},"61":{"feature":"Taku krustojums “+ / X” veida","placement":"Krustojuma centrs","look":"Meklē vietu, kur divas takas krustojas “+” vai “X” veidā.","put":"Novieto kontrolpunktu tieši taku krustojuma centrā."},"62":{"feature":"Paugurs","placement":"LOF apļa centrs","look":"Meklē kartē norādīto pauguru.","put":"Novieto kontrolpunktu LOF apļa centra vietā uz paugura."},"63":{"feature":"Taku atzars “Y” krustojums","placement":"“Y” atzara centrs","look":"Meklē vietu, kur taka sadalās vai pievienojas citai takai “Y” veidā.","put":"Novieto kontrolpunktu tieši “Y” atzara savienojuma vietā."},"81":{"feature":"Taku krustojums “+ / X” veida","placement":"Krustojuma centrs","look":"Meklē vietu, kur divas takas krustojas “+” vai “X” veidā.","put":"Novieto kontrolpunktu tieši taku krustojuma centrā."},"82":{"feature":"Paugurs","placement":"LOF apļa centrs","look":"Meklē kartē norādīto pauguru.","put":"Novieto kontrolpunktu LOF apļa centra vietā uz paugura."},"83":{"feature":"Paugurs","placement":"LOF apļa centrs","look":"Meklē kartē norādīto pauguru.","put":"Novieto kontrolpunktu LOF apļa centra vietā uz paugura."},"91":{"feature":"Paugurs","placement":"LOF apļa centrs","look":"Meklē kartē norādīto pauguru.","put":"Novieto kontrolpunktu LOF apļa centra vietā uz paugura."},"92":{"feature":"Paugurs","placement":"LOF apļa centrs","look":"Meklē kartē norādīto pauguru.","put":"Novieto kontrolpunktu LOF apļa centra vietā uz paugura."}};
 (function validateControls(){
   const ids=CONTROLS.map(c=>c.id);
   const missing=EXPECTED_IDS.filter(id=>!ids.includes(id));
@@ -525,6 +532,7 @@ let placed=JSON.parse(localStorage.getItem('vk2026_placed')||'{}');
 let placedMeta={};
 let db=null,dbChannel=null,dbReady=false,realtimeReady=false,dbLastError='',dbPollTimer=null;
 let deviceHeading=null,currentTargetBearing=null,compassListening=false;
+let toolPointsVisible=localStorage.getItem('vk2026_tool_points')!=='0';
 
 function merc(ll){
   let lat=Math.max(-85.05112878,Math.min(85.05112878,ll.lat))*Math.PI/180;
@@ -646,6 +654,22 @@ function makeIcon(id,sel=false){
 function refreshMarkerIcons(){
   Object.entries(markers).forEach(([id,m])=>m.setIcon(makeIcon(id,id===targetId)));
 }
+
+function applyToolPointsVisibility(){
+  Object.values(markers).forEach(m=>{
+    if(toolPointsVisible){
+      if(!map.hasLayer(m))m.addTo(map);
+    }else{
+      if(map.hasLayer(m))map.removeLayer(m);
+    }
+  });
+  const b=$('toolPointsBtn');
+  if(b){
+    b.textContent=toolPointsVisible?'◉ Rīka punkti: REDZAMI':'○ Rīka punkti: PASLĒPTI';
+    b.classList.toggle('points-hidden',!toolPointsVisible);
+  }
+}
+
 function renderControls(){
   Object.values(markers).forEach(m=>map.removeLayer(m));markers={};
   if(!model)return;
@@ -654,6 +678,7 @@ function renderControls(){
     markers[c.id]=L.marker(ll,{icon:makeIcon(c.id,c.id===targetId)}).addTo(map).on('click',()=>openControlInfo(c.id));
   }
   selectTarget(targetId,false);
+  applyToolPointsVisibility();
   if(!lofOverlay){
     lofOverlay=new AffineImageOverlay('lof-map.jpg');
     lofOverlay.setOpacity(lofOpacity);
@@ -1439,6 +1464,12 @@ $('instructorOpacity').oninput=e=>{
   if(lofOverlay)lofOverlay.setOpacity(lofOpacity);
 };
 
+$('toolPointsBtn').onclick=()=>{
+  toolPointsVisible=!toolPointsVisible;
+  localStorage.setItem('vk2026_tool_points',toolPointsVisible?'1':'0');
+  applyToolPointsVisibility();
+};
+
 
 $('closeControlInfo').onclick=closeControlInfo;
 $('controlInfoOverlay').addEventListener('click',e=>{
@@ -1496,6 +1527,7 @@ if(Number.isFinite(savedInstructorOpacity) && savedInstructorOpacity>=0 && saved
   $('instructorOpacity').value=String(Math.round(lofOpacity*100));
 }
 $('opacityValue').textContent=Math.round(lofOpacity*100)+'%';
+applyToolPointsVisibility();
 
 if(localStorage.getItem('vk2026_panel_collapsed')==='1'){
   document.body.classList.add('panel-collapsed');
