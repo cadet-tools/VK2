@@ -4,6 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#111711">
+
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="manifest" href="site.webmanifest">
+<meta name="application-name" content="Vējiņu kauss KP">
+<meta name="apple-mobile-web-app-title" content="Vējiņu KP">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
 <title>Vējiņu kauss 2026 — KP izvietošana</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
@@ -491,14 +500,86 @@ button,select,input,.metric-action{touch-action:manipulation}
   vertical-align:middle;
 }
 
+
+/* V21 — CADET.LV identitāte */
+.brand-title{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:8px 11px;
+  pointer-events:auto;
+  min-width:0;
+}
+.brand-logo-link{
+  display:flex;
+  align-items:center;
+  flex:0 0 auto;
+  text-decoration:none;
+}
+.brand-logo{
+  display:block;
+  width:92px;
+  max-height:30px;
+  object-fit:contain;
+}
+.brand-title-copy{min-width:0}
+.brand-title-copy b{
+  display:block;
+  font-size:14px;
+  white-space:nowrap;
+}
+.brand-title-copy span{
+  display:block;
+  font-size:10px;
+  color:var(--muted);
+  white-space:nowrap;
+}
+.brand-gate-logo{
+  display:block;
+  width:min(210px,72%);
+  height:auto;
+  margin:0 auto 18px;
+  object-fit:contain;
+}
+.tool-footer{
+  margin-top:10px;
+  padding-top:9px;
+  border-top:1px solid rgba(255,255,255,.08);
+  text-align:center;
+  color:var(--muted);
+  font-size:10px;
+  line-height:1.4;
+}
+.tool-footer a{
+  color:#d7c195;
+  text-decoration:none;
+  font-weight:900;
+}
+.tool-footer a:focus,.tool-footer a:hover{text-decoration:underline}
+@media(max-width:430px){
+  .brand-logo{width:76px;max-height:27px}
+  .brand-title{gap:7px;padding:8px 9px}
+  .brand-title-copy b{font-size:12px}
+  .brand-title-copy span{font-size:9px}
+}
+@media(max-width:355px){
+  .brand-logo{width:65px}
+  .brand-title-copy b{display:none}
+}
+
 </style>
 </head>
 <body>
-<div id="accessGate" class="access-gate"><div class="access-card"><div id="accessIcon" class="access-icon">🔒</div><h1 id="accessTitle">Instruktoru rīks nav pieejams</h1><p id="accessMessage">Rīks tiks atvērts tikai tad, kad administrators to ieslēgs.</p><div id="accessState" class="access-state checking">Pārbauda piekļuvi…</div><p class="access-small">Ja administrators rīku ieslēdz, šī lapa atvērsies automātiski.</p></div></div>
+<div id="accessGate" class="access-gate"><div class="access-card"><a href="https://cadet.lv" target="_blank" rel="noopener" aria-label="CADET.LV"><img class="brand-gate-logo" src="CADET_LV.png" alt="CADET.LV"></a><div id="accessIcon" class="access-icon">🔒</div><h1 id="accessTitle">Instruktoru rīks nav pieejams</h1><p id="accessMessage">Rīks tiks atvērts tikai tad, kad administrators to ieslēgs.</p><div id="accessState" class="access-state checking">Pārbauda piekļuvi…</div><p class="access-small">Ja administrators rīku ieslēdz, šī lapa atvērsies automātiski.</p></div></div>
 <div id="map"></div>
 
 <div class="topbar">
-  <div class="card title"><b>Vējiņu kauss 2026</b><span>🔒 Instruktoru režīms · v20</span></div>
+  <div class="card brand-title">
+    <a class="brand-logo-link" href="https://cadet.lv" target="_blank" rel="noopener" aria-label="Atvērt CADET.LV">
+      <img class="brand-logo" src="CADET_LV.png" alt="CADET.LV">
+    </a>
+    <div class="brand-title-copy"><b>Vējiņu kauss 2026</b><span>🔒 Instruktoru režīms · v21</span></div>
+  </div>
   <div class="spacer"></div>
   <button id="syncBtn" class="iconbtn syncbtn" title="Tiešsaistes KP statuss">DB —</button>
 </div>
@@ -639,6 +720,9 @@ button,select,input,.metric-action{touch-action:manipulation}
 </div>
 
 
+
+
+  <footer class="tool-footer">© 2026 <a href="https://cadet.lv" target="_blank" rel="noopener">CADET.LV</a> · Rīks darbojas CADET.LV vidē</footer>
 
 <div id="controlInfoOverlay" class="control-info-overlay" aria-hidden="true">
   <div class="control-info-card" role="dialog" aria-modal="true" aria-labelledby="controlInfoTitle">
