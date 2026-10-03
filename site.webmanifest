@@ -1,0 +1,24 @@
+{
+  "name": "Vējiņu kauss 2026 — KP izvietošana",
+  "short_name": "Vējiņu KP",
+  "description": "Instruktoru rīks kontrolpunktu izvietošanai.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0e130f",
+  "theme_color": "#111711",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
