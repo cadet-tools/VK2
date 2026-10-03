@@ -498,7 +498,7 @@ button,select,input,.metric-action{touch-action:manipulation}
 <div id="map"></div>
 
 <div class="topbar">
-  <div class="card title"><b>Vējiņu kauss 2026</b><span>🔒 Instruktoru režīms · v17</span></div>
+  <div class="card title"><b>Vējiņu kauss 2026</b><span>🔒 Instruktoru režīms · v18</span></div>
   <div class="spacer"></div>
   <button id="syncBtn" class="iconbtn syncbtn" title="Tiešsaistes KP statuss">DB —</button>
 </div>
@@ -1079,19 +1079,14 @@ function applyGpsPosition(p){
   $('gpsBtn').textContent='⏹ Apturēt GPS';
   gpsStarting=false;
   updateNav();
-
-  if(pendingNearest){
-    pendingNearest=false;
-    nearest();
-  }
 }
 
 function gpsErrorMessage(e){
   if(e.code===1){
-    return 'Atrašanās vieta šai lapai nav atļauta. iPhone: Safari adreses joslā atver vietnes iestatījumus → Location/Atrašanās vieta → Allow/Atļaut. Ja tur nav pieejams, pārbaudi Settings → Privacy & Security → Location Services.';
+    return 'Atrašanās vieta šai lapai nav atļauta. Atver pārlūka vietnes atļaujas un atļauj atrašanās vietas izmantošanu. Ja nepieciešams, pārbaudi arī ierīces atrašanās vietas un privātuma iestatījumus.';
   }
   if(e.code===2){
-    return 'Telefons pašlaik nevar noteikt atrašanās vietu. Pārbaudi, vai iPhone/Android ir ieslēgti Location Services/Atrašanās vietas pakalpojumi.';
+    return 'Ierīce pašlaik nevar noteikt atrašanās vietu. Pārbaudi, vai ir ieslēgti atrašanās vietas pakalpojumi un GPS.';
   }
   if(e.code===3){
     return 'GPS atrašanās vietas noteikšana aizņēma pārāk ilgi. Pamēģini vēlreiz ārā vai vietā ar labāku GPS uztveršanu.';
@@ -1143,7 +1138,7 @@ function startGps(){
   $('status').className='status warn';
   $('status').textContent='Atļauj pārlūkam izmantot tavu atrašanās vietu.';
 
-  // SVARĪGI iPhone/Safari:
+  // SVARĪGI mobilajos pārlūkos:
   // getCurrentPosition tiek izsaukts UZREIZ no pogas pieskāriena.
   // Pirms tā nav neviena await/Permissions API pieprasījuma.
   navigator.geolocation.getCurrentPosition(
@@ -1746,7 +1741,7 @@ function orientationHandler(e){
     h=e.webkitCompassHeading;
     if(typeof e.webkitCompassAccuracy==='number')compassAccuracy=e.webkitCompassAccuracy;
   }else if(typeof e.alpha==='number' && Number.isFinite(e.alpha)){
-    // Android / citi pārlūki: koriģējam pēc ekrāna orientācijas.
+    // Pārlūkiem, kas dod alpha virzienu: koriģējam pēc ekrāna orientācijas.
     h=normalize360(360-e.alpha+screenOrientationAngle());
   }
 
@@ -1777,7 +1772,7 @@ async function openCompass(){
         const p=await DeviceOrientationEvent.requestPermission();
         if(p!=='granted'){
           $('compassReadout').textContent='Kompasa atļauja nav dota.';
-          $('compassSub').textContent='iPhone pieprasa atļauju Motion & Orientation datiem.';
+          $('compassSub').textContent='Pārlūks pieprasa atļauju izmantot ierīces kustības un orientācijas sensorus.';
           return;
         }
       }
@@ -2415,7 +2410,7 @@ $('copyLinkBtn').onclick=copyLink;$('exportBtn').onclick=exportCfg;
 $('importFile').onchange=async e=>{try{importCfg(JSON.parse(await e.target.files[0].text()))}catch(err){alert(err.message)}};
 $('loadWmsBtn').onclick=loadWms;$('addWmsBtn').onclick=addWms;
 
-// V16: Safari nedrīkst palielināt visu lapu.
+// V16: pārlūks nedrīkst palielināt visu rīka saskarni.
 ['gesturestart','gesturechange','gestureend'].forEach(type=>{
   document.addEventListener(type,e=>e.preventDefault(),{passive:false});
 });
