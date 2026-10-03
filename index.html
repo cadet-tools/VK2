@@ -7,7 +7,6 @@
 
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
-<link rel="manifest" href="site.webmanifest">
 <meta name="application-name" content="Vējiņu kauss KP">
 <meta name="apple-mobile-web-app-title" content="Vējiņu KP">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -578,7 +577,7 @@ button,select,input,.metric-action{touch-action:manipulation}
     <a class="brand-logo-link" href="https://cadet.lv" target="_blank" rel="noopener" aria-label="Atvērt CADET.LV">
       <img class="brand-logo" src="CADET_LV.png" alt="CADET.LV">
     </a>
-    <div class="brand-title-copy"><b>Vējiņu kauss 2026</b><span>🔒 Instruktoru režīms · v21</span></div>
+    <div class="brand-title-copy"><b>Vējiņu kauss 2026</b><span>🔒 Instruktoru režīms · v21.1</span></div>
   </div>
   <div class="spacer"></div>
   <button id="syncBtn" class="iconbtn syncbtn" title="Tiešsaistes KP statuss">DB —</button>
@@ -2545,9 +2544,30 @@ applyToolPointsVisibility();
 requestAnimationFrame(()=>snapMainDrawer(mainDrawerState,false));
 
 try{
-  if(location.hash.startsWith('#cfg=')){let o=decodeCfg(location.hash.slice(5));pairs=o.pairs||[];if(o.wms?.url)$('wmsUrl').value=o.wms.url;renderPairs();}
-  else{pairs=JSON.parse(localStorage.getItem('vk2026_pairs')||'[]');renderPairs();}
-}catch(e){console.warn(e);renderPairs()}
+  const cfgKey='vk2026_last_cfg_hash';
+  let cfgHash='';
+
+  if(location.hash.startsWith('#cfg=')){
+    cfgHash=location.hash;
+    localStorage.setItem(cfgKey,cfgHash);
+  }else{
+    const saved=localStorage.getItem(cfgKey)||'';
+    if(saved.startsWith('#cfg='))cfgHash=saved;
+  }
+
+  if(cfgHash){
+    const o=decodeCfg(cfgHash.slice(5));
+    pairs=o.pairs||[];
+    if(o.wms?.url)$('wmsUrl').value=o.wms.url;
+    renderPairs();
+  }else{
+    pairs=JSON.parse(localStorage.getItem('vk2026_pairs')||'[]');
+    renderPairs();
+  }
+}catch(e){
+  console.warn(e);
+  renderPairs();
+}
 checkToolAccess(true).then(()=>{
   startToolAccessWatch();
   initDatabase();
