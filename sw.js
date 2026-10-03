@@ -1,11 +1,19 @@
-const STATIC_CACHE='vk2026-static-v16';
-const RUNTIME_CACHE='vk2026-runtime-v16';
+const STATIC_CACHE='vk2026-static-v21';
+const RUNTIME_CACHE='vk2026-runtime-v21';
 const LOCAL_STATIC=[
   './',
   './index.html',
   './lof-map.jpg',
   './supabase-config.js'
-];
+,
+  './CADET_LV_LOGO.png',
+  './CADET_LV.png',
+  './favicon-32.png',
+  './apple-touch-icon.png',
+  './icon-192.png',
+  './icon-512.png',
+  './site.webmanifest',
+  './admin.html'];
 
 self.addEventListener('install',event=>{
   event.waitUntil(
