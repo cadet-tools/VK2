@@ -68,13 +68,77 @@ select,input{width:100%;background:#0f1511;color:#fff;border:1px solid var(--lin
 
 .leaflet-top.leaflet-right{top:58px}
 .admin-access-box{position:absolute;z-index:1150;top:calc(72px + env(safe-area-inset-top));left:10px;display:flex;align-items:center;gap:12px;padding:10px 11px;border-radius:15px;border:1px solid rgba(255,255,255,.13);background:rgba(14,19,15,.94);box-shadow:0 10px 30px rgba(0,0,0,.3)}.admin-access-box small{display:block;color:#a9b6aa;font-size:9px;font-weight:850}.admin-access-box strong{display:block;margin-top:2px;font-size:13px}.access-toggle{border:0;border-radius:11px;padding:10px 13px;min-width:110px;font-weight:900;background:#4b2b2c;color:#ffd1cf}.access-toggle.on{background:#1f6933;color:#d5ffdc}.access-toggle:disabled{opacity:.55}.admin-secret-overlay{display:none;position:fixed;z-index:30000;inset:0;background:rgba(4,7,5,.84);align-items:center;justify-content:center;padding:20px}.admin-secret-overlay.open{display:flex}.admin-secret-card{width:min(480px,100%);background:#111812;border:1px solid #39463b;border-radius:20px;padding:20px;box-shadow:0 30px 90px rgba(0,0,0,.55)}.admin-secret-card h2{margin:0 0 8px}.admin-secret-card p{color:#a9b6aa;line-height:1.45}.admin-secret-card input{width:100%;margin:8px 0 6px;font-size:17px;padding:13px 14px}.admin-secret-error{min-height:22px;color:#ffaaa6;font-size:13px;font-weight:750;margin-bottom:8px}
+
+/* V18 — ātra admin paroles aizsardzība */
+#adminLoginGate{
+  position:fixed;
+  z-index:50000;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+  background:#080d09;
+  color:#fff;
+}
+#adminLoginGate.hidden{display:none}
+.admin-login-card{
+  width:min(440px,100%);
+  background:#111812;
+  border:1px solid #344137;
+  border-radius:22px;
+  padding:22px;
+  box-shadow:0 28px 90px rgba(0,0,0,.65);
+}
+.admin-login-icon{
+  width:60px;height:60px;
+  display:grid;place-items:center;
+  border-radius:18px;
+  background:#202b22;
+  font-size:28px;
+  margin-bottom:14px;
+}
+.admin-login-card h1{margin:0 0 8px;font-size:24px}
+.admin-login-card p{margin:0 0 16px;color:#a9b6aa;line-height:1.45;font-size:14px}
+#adminLoginPassword{
+  width:100%;
+  font-size:18px;
+  padding:13px 14px;
+  border-radius:13px;
+  margin-bottom:8px;
+}
+#adminLoginError{
+  min-height:22px;
+  color:#ffaaa6;
+  font-size:13px;
+  font-weight:750;
+  margin-bottom:8px;
+}
+#adminLoginBtn{width:100%;min-height:48px}
+body.admin-locked > *:not(#adminLoginGate){
+  visibility:hidden!important;
+}
+body.admin-locked #adminLoginGate{
+  visibility:visible!important;
+}
+
 </style>
 </head>
-<body>
+<body class="admin-locked">
+<div id="adminLoginGate">
+  <div class="admin-login-card">
+    <div class="admin-login-icon">🔐</div>
+    <h1>Administratora piekļuve</h1>
+    <p>Ievadi administratora paroli, lai atvērtu kartes kalibrēšanu un instruktoru piekļuves vadību.</p>
+    <input id="adminLoginPassword" type="password" autocomplete="current-password" placeholder="Administratora parole">
+    <div id="adminLoginError"></div>
+    <button id="adminLoginBtn" class="btn">Atvērt admin paneli</button>
+  </div>
+</div>
 <div id="map"></div>
 
 <div class="topbar">
-  <div class="card title"><b>Vējiņu kauss 2026</b><span>Administratora režīms · v14</span></div>
+  <div class="card title"><b>Vējiņu kauss 2026</b><span>Administratora režīms · v18</span></div>
   <div class="spacer"></div>
   <button id="adminBtn" class="iconbtn" title="Iestatījumi">⚙️</button>
 </div>
@@ -177,7 +241,75 @@ const EXPECTED_IDS=["21","23","31","32","33","35","41","42","43","44","46","47",
 const R=6378137;
 const $=id=>document.getElementById(id);
 
-const ACCESS_SB=window.VK_SUPABASE||{};let accessDb=null,adminToolEnabled=false,pendingAdminToggle=null;
+const ACCESS_SB=window.VK_SUPABASE||{};
+
+let adminLoginBusy=false;
+
+async function verifyAdminPasswordAndUnlock(){
+  if(adminLoginBusy)return;
+
+  const input=$('adminLoginPassword');
+  const errorEl=$('adminLoginError');
+  const btn=$('adminLoginBtn');
+  const secret=(input?.value||'').trim();
+
+  if(!secret){
+    errorEl.textContent='Ievadi administratora paroli.';
+    input?.focus();
+    return;
+  }
+
+  const sb=ensureAccessDb();
+  if(!sb){
+    errorEl.textContent='Nav pieejams Supabase savienojums.';
+    return;
+  }
+
+  adminLoginBusy=true;
+  btn.disabled=true;
+  btn.textContent='Pārbauda…';
+  errorEl.textContent='';
+
+  try{
+    // Nolasām pašreizējo ON/OFF stāvokli.
+    const {data:row,error:readError}=await sb
+      .from('tool_access')
+      .select('enabled')
+      .eq('id','instructor')
+      .maybeSingle();
+
+    if(readError)throw readError;
+    const currentEnabled=!!row?.enabled;
+
+    // Esošo RPC izmantojam arī paroles pārbaudei:
+    // iestatām TO PAŠU stāvokli, tāpēc nekas nemainās.
+    const {error:rpcError}=await sb.rpc('set_instructor_tool_enabled',{
+      p_secret:secret,
+      p_enabled:currentEnabled
+    });
+
+    if(rpcError)throw rpcError;
+
+    // Admin ON/OFF pogai saglabājam paroli tikai šīs cilnes sesijai.
+    sessionStorage.setItem('vk_admin_secret',secret);
+
+    document.body.classList.remove('admin-locked');
+    $('adminLoginGate').classList.add('hidden');
+    input.value='';
+
+    // Atsvaidzinām admin ON/OFF indikatoru.
+    await loadAdminAccess();
+  }catch(e){
+    console.warn('Admin login:',e);
+    errorEl.textContent='Nepareiza parole.';
+    input.select();
+  }finally{
+    adminLoginBusy=false;
+    btn.disabled=false;
+    btn.textContent='Atvērt admin paneli';
+  }
+}
+let accessDb=null,adminToolEnabled=false,pendingAdminToggle=null;
 function ensureAccessDb(){if(accessDb)return accessDb;if(!window.supabase||!ACCESS_SB.url||!ACCESS_SB.publishableKey)return null;accessDb=window.supabase.createClient(ACCESS_SB.url,ACCESS_SB.publishableKey,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});return accessDb;}
 function renderAdminAccess(){const text=$('adminAccessText'),btn=$('adminAccessToggle');if(!text||!btn)return;btn.disabled=false;if(adminToolEnabled){text.textContent='IESLĒGTS';btn.textContent='IZSLĒGT';btn.classList.add('on');}else{text.textContent='IZSLĒGTS';btn.textContent='IESLĒGT';btn.classList.remove('on');}}
 async function loadAdminAccess(){const sb=ensureAccessDb();if(!sb){$('adminAccessText').textContent='NAV SAVIENOJUMA';$('adminAccessToggle').disabled=true;return;}try{const {data,error}=await sb.from('tool_access').select('enabled').eq('id','instructor').maybeSingle();if(error)throw error;adminToolEnabled=!!data?.enabled;renderAdminAccess();}catch(e){console.error(e);$('adminAccessText').textContent='KĻŪDA';$('adminAccessToggle').disabled=true;}}
@@ -666,6 +798,13 @@ $('overlayToggle').onchange=e=>{lofVisible=e.target.checked;if(!lofOverlay)retur
 $('copyLinkBtn').onclick=copyLink;$('exportBtn').onclick=exportCfg;
 $('importFile').onchange=async e=>{try{importCfg(JSON.parse(await e.target.files[0].text()))}catch(err){alert(err.message)}};
 $('loadWmsBtn').onclick=loadWms;$('addWmsBtn').onclick=addWms;
+
+
+$('adminLoginBtn').onclick=verifyAdminPasswordAndUnlock;
+$('adminLoginPassword').addEventListener('keydown',e=>{
+  if(e.key==='Enter')verifyAdminPasswordAndUnlock();
+});
+setTimeout(()=>$('adminLoginPassword')?.focus(),100);
 
 $('adminAccessToggle').onclick=()=>requestAdminSecret(!adminToolEnabled);
 $('adminSecretCancel').onclick=closeAdminSecret;
